@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GATE CSE 2027 Daily Planner</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg-elev: #14171f;
+    --bg-elev-2: #1a1e28;
+    --border: #262b38;
+    --text: #eceef3;
+    --text-dim: #97a0b3;
+    --text-faint: #5c6478;
+    --accent: #8b94f6;
+    --accent-soft: rgba(139,148,246,0.14);
+    --blue: #5fb0e0;
+    --red: #f0636d;
+    --red-soft: rgba(240,99,109,0.14);
+    --yellow: #e8bb4e;
+    --yellow-soft: rgba(232,187,78,0.14);
+    --green: #4ade95;
+    --green-soft: rgba(74,222,149,0.14);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 24px 16px 60px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--red), var(--yellow), var(--green));
+    z-index: 10;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { margin-bottom: 4px; }
+  .header-top { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  h1 { font-size:1.2rem; font-weight:800; letter-spacing:-0.01em; margin:0; }
+  .save-status { font-size:0.75rem; color:var(--text-faint); min-width:70px; text-align:right; }
+  .save-status.ok { color: var(--green); }
+  .save-status.err { color: var(--red); }
+  #loading-msg { color: var(--text-dim); padding: 60px 0; text-align:center; }
+  .hidden { display: none; }
+
+  .hero { text-align:center; padding: 16px 0 22px; }
+  .hero-number { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 4.6rem; font-weight: 800; line-height:1; letter-spacing:-0.02em; }
+  .hero-label { color: var(--text-dim); font-size: 0.92rem; margin-top: 8px; }
+  .hero-sub { color: var(--text-faint); font-size: 0.76rem; margin-top: 6px; }
+
+  .tab-nav { display:flex; gap:4px; background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius-sm); padding:4px; margin-bottom:18px; }
+  .tab-btn { flex:1; background:none; border:none; color:var(--text-dim); font-size:0.8rem; font-weight:600; padding:9px; border-radius:6px; cursor:pointer; font-family:inherit; }
+  .tab-btn.active { background:var(--accent-soft); color:var(--accent); }
+
+  .stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .stat-card { background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 10px; text-align:center; }
+  .stat-card-title { color:var(--text-faint); font-size:0.72rem; margin-bottom:6px; }
+  .stat-card-value { font-weight:700; font-size:1rem; }
+  .c-green { color: var(--green); }
+  .c-yellow { color: var(--yellow); }
+  .c-red { color: var(--red); }
+
+  .advice-box { background:var(--bg-elev); border:1px solid var(--border); border-left:3px solid var(--yellow); border-radius:var(--radius-sm); padding:12px 14px; font-size:0.82rem; color:var(--text-dim); margin-bottom:14px; line-height:1.5; }
+  .advice-box.red { border-left-color: var(--red); }
+  .synthesis-box { background:var(--accent-soft); border:1px solid var(--border); border-radius:var(--radius); padding:16px; font-size:0.87rem; color:var(--text); line-height:1.6; margin-bottom:12px; }
+  .context-line { color:var(--text-faint); font-size:0.76rem; text-align:center; margin-bottom:18px; }
+
+  .detail-toggle { width:100%; background:none; border:1px solid var(--border); color:var(--text-dim); padding:9px; border-radius:var(--radius-sm); cursor:pointer; font-size:0.78rem; font-family:inherit; margin-bottom:10px; }
+  .detail-body { margin-bottom:10px; }
+  .block-row { display:flex; align-items:center; gap:10px; padding:7px 0; font-size:0.78rem; }
+  .block-label { flex:1; color:var(--text-dim); }
+  .block-pct { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; width:38px; text-align:right; }
+  .block-bar-track { width:60px; height:4px; background:var(--border); border-radius:2px; overflow:hidden; flex-shrink:0; }
+  .block-bar-fill { height:100%; }
+  .block-bar-fill.c-green { background: var(--green); }
+  .block-bar-fill.c-yellow { background: var(--yellow); }
+  .block-bar-fill.c-red { background: var(--red); }
+
+  .calendar-toolbar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .toolbar-btn { background:none; border:1px solid var(--border); color:var(--text-dim); font-size:0.75rem; padding:7px 11px; border-radius:var(--radius-sm); cursor:pointer; font-family:inherit; }
+  .toolbar-btn:hover { border-color:var(--accent); color:var(--text); }
+
+  .week-group { background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; }
+  .week-header { display:flex; align-items:center; gap:10px; padding:13px 16px; cursor:pointer; }
+  .week-header:hover { background:var(--bg-elev-2); }
+  .week-chevron { color:var(--text-faint); transition:transform 0.15s ease; font-size:0.9rem; }
+  .week-chevron.open { transform:rotate(90deg); }
+  .week-title-block { flex:1; }
+  .week-title { font-weight:600; font-size:0.88rem; }
+  .week-dates { color:var(--text-faint); font-size:0.76rem; margin-left:8px; font-weight:400; }
+  .week-count { font-size:0.78rem; color:var(--text-dim); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .week-days { padding:2px 16px 12px; }
+
+  .day-row { display:flex; align-items:flex-start; gap:12px; padding:9px 0; border-top:1px solid var(--border); }
+  .day-row:first-child { border-top:none; }
+  .day-row.today { background: var(--accent-soft); margin:0 -16px; padding:9px 16px; border-top:none; }
+  .day-check { display:flex; align-items:flex-start; padding-top:1px; }
+  .day-check input { width:19px; height:19px; accent-color:var(--green); cursor:pointer; margin-top:2px; }
+  .day-info { flex:1; min-width:0; }
+  .day-date-line { font-size:0.78rem; color:var(--text-dim); margin-bottom:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .day-badge { font-size:0.62rem; padding:1px 7px; border-radius:999px; border:1px solid var(--border); color:var(--text-faint); }
+  .day-badge.milestone { border-color:var(--accent); color:var(--accent); }
+  .day-badge.buffer { border-color:var(--blue); color:var(--blue); }
+  .day-task { font-size:0.83rem; color:var(--text); line-height:1.4; }
+  .day-row.done .day-task { color:var(--text-faint); text-decoration:line-through; text-decoration-color:var(--border); }
+
+  .exam-day-marker { background:var(--green-soft); border:1px solid var(--green); border-radius:var(--radius); padding:16px; text-align:center; color:var(--green); font-weight:700; margin-top:8px; font-size:0.9rem; }
+  .reset-row { text-align:center; margin-top:22px; }
+  #reset-days-btn { background:none; border:1px solid var(--border); color:var(--text-faint); font-size:0.78rem; padding:8px 16px; border-radius:var(--radius-sm); cursor:pointer; font-family:inherit; }
+  #reset-days-btn:hover, #reset-days-btn.armed { border-color:var(--red); color:var(--red); }
+
+  .mock-form-card { background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:18px; }
+  .form-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:12px; }
+  .form-grid label, .notes-label { display:flex; flex-direction:column; gap:5px; font-size:0.76rem; color:var(--text-faint); }
+  input, select { background:var(--bg-elev-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:9px 10px; font-family:inherit; font-size:0.85rem; }
+  input:focus, select:focus { outline:none; border-color:var(--accent); }
+  input[type=date]::-webkit-calendar-picker-indicator { filter:invert(0.7); }
+  .notes-label { margin-bottom:12px; }
+  .form-error { color:var(--red); font-size:0.78rem; margin-bottom:10px; }
+  #mock-add-btn { width:100%; background:var(--accent-soft); border:1px solid var(--accent); color:var(--accent); font-weight:600; padding:11px; border-radius:var(--radius-sm); cursor:pointer; font-size:0.85rem; font-family:inherit; }
+  #mock-add-btn:hover { background:var(--accent); color:var(--bg); }
+
+  .mock-entry { background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:10px; }
+  .mock-entry-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .mock-entry-date { font-weight:600; font-size:0.85rem; flex:1; }
+  .mock-type-tag { font-size:0.68rem; color:var(--text-faint); border:1px solid var(--border); padding:2px 8px; border-radius:999px; }
+  .mock-zone-emoji { font-size:1rem; }
+  .mock-delete-btn { background:none; border:none; color:var(--text-faint); font-size:1.2rem; cursor:pointer; padding:0 4px; line-height:1; }
+  .mock-delete-btn:hover { color:var(--red); }
+  .mock-bar-track { height:6px; background:var(--border); border-radius:3px; overflow:hidden; margin-bottom:8px; }
+  .mock-bar-fill { height:100%; }
+  .mock-bar-fill.c-green { background: var(--green); }
+  .mock-bar-fill.c-yellow { background: var(--yellow); }
+  .mock-bar-fill.c-red { background: var(--red); }
+  .mock-stats-line { font-size:0.78rem; color:var(--text-dim); margin-bottom:4px; }
+  .mock-notes-line { font-size:0.76rem; color:var(--text-faint); font-style:italic; }
+  .empty-state { color:var(--text-faint); text-align:center; padding:26px; font-size:0.85rem; }
+
+  .footnote { color:var(--text-faint); font-size:0.7rem; margin-top:20px; line-height:1.5; text-align:center; }
+
+  @media (max-width: 560px) { .stat-grid { grid-template-columns:1fr; } }
+  @media (max-width: 480px) { .form-grid { grid-template-columns:1fr; } .hero-number { font-size:3.4rem; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="header-top">
+      <h1>GATE CSE 2027 Daily Planner</h1>
+      <span id="save-status" class="save-status"></span>
+    </div>
+  </header>
+
+  <div id="loading-msg">Loading your saved progress…</div>
+
+  <div id="main-content" class="hidden">
+    <div class="hero">
+      <div class="hero-number" id="hero-days">—</div>
+      <div class="hero-label" id="hero-label">days until Feb 6, 2027</div>
+      <div class="hero-sub" id="hero-progress"></div>
+    </div>
+
+    <div class="tab-nav" id="tab-nav">
+      <button class="tab-btn active" id="tab-btn-overview" data-tab="overview">Overview</button>
+      <button class="tab-btn" id="tab-btn-calendar" data-tab="calendar">Daily Calendar</button>
+      <button class="tab-btn" id="tab-btn-mocklog" data-tab="mocklog">Mock Log</button>
+    </div>
+
+    <div class="tab-panel" id="tab-panel-overview">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-card-title">Pace</div>
+          <div class="stat-card-value" id="pace-value">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Syllabus covered</div>
+          <div class="stat-card-value" id="syllabus-value">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Mock trajectory</div>
+          <div class="stat-card-value" id="trajectory-value">—</div>
+        </div>
+      </div>
+
+      <div class="advice-box" id="pace-advice" style="display:none"></div>
+      <div class="synthesis-box" id="synthesis-text"></div>
+      <div class="context-line" id="target-ladder-line"></div>
+
+      <button class="detail-toggle" id="syllabus-toggle">Syllabus by block ▾</button>
+      <div class="detail-body" id="syllabus-detail" style="display:none"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-panel-calendar" style="display:none">
+      <div class="calendar-toolbar">
+        <button class="toolbar-btn" id="jump-today-btn">Jump to today</button>
+        <button class="toolbar-btn" id="expand-all-weeks-btn">Expand all</button>
+        <button class="toolbar-btn" id="collapse-all-weeks-btn">Collapse all</button>
+      </div>
+      <div id="calendar-groups"></div>
+      <div class="exam-day-marker" id="exam-day-marker"></div>
+      <div class="reset-row">
+        <button id="reset-days-btn">Reset all day statuses</button>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-panel-mocklog" style="display:none">
+      <div class="mock-form-card">
+        <div class="form-grid">
+          <label>Date<input type="date" id="mock-date"></label>
+          <label>Type
+            <select id="mock-type">
+              <option value="subject">Subject test</option>
+              <option value="part">Part test</option>
+              <option value="full">Full mock</option>
+            </select>
+          </label>
+          <label>Score /100<input type="number" id="mock-score" min="0" max="100" placeholder="e.g. 62"></label>
+          <label>Accuracy %<input type="number" id="mock-accuracy" min="0" max="100" placeholder="e.g. 78"></label>
+          <label>Attempted /65<input type="number" id="mock-attempted" min="0" max="65" placeholder="optional"></label>
+        </div>
+        <label class="notes-label">Notes<input type="text" id="mock-notes" placeholder="e.g. weak: TOC, lost marks to negative marking"></label>
+        <div class="form-error" id="mock-form-error" style="display:none"></div>
+        <button id="mock-add-btn">Log this test</button>
+      </div>
+      <div id="mock-list"></div>
+    </div>
+
+    <p class="footnote">Daily tasks for Sep 4-17 and Jan 30-Feb 5 come from the exact day-by-day plan in Part 3. Other days use the assigned subject for that week, from Part 3, Section 2, with Sundays as buffer days. Everything saves automatically and privately.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  var PHASE0_OVERRIDES = {
+    '2026-09-04': 'Set up: pick one resource per subject, create a GATE Overflow account, set up the 4 notebooks, install a study-hours blocker, skim the full syllabus once',
+    '2026-09-05': 'Cold diagnostic, batch 1 - Math, Digital Logic, Programming & DS, Algorithms (no studying first)',
+    '2026-09-06': 'Cold diagnostic, batch 2 - OS, DBMS, Computer Networks, TOC, Compiler, COA, GA',
+    '2026-09-07': 'Review the diagnostic honestly (baseline, not a verdict); begin Discrete Math - propositional & first-order logic',
+    '2026-09-08': 'Discrete Math - sets, relations, functions, posets/lattices + PYQs',
+    '2026-09-09': 'Discrete Math - combinatorics, counting, recurrence relations + PYQs',
+    '2026-09-10': 'Discrete Math - linear algebra + calculus basics + PYQs; end-of-Phase-0 mini review',
+    '2026-09-11': 'Discrete Math - probability & statistics + a mixed PYQ set; start daily 20-min GA practice',
+    '2026-09-12': 'Discrete Math mixed PYQ practice (last 10 years) + reattempt Day-2 diagnostic mistakes',
+    '2026-09-13': 'Discrete Math subject test (timed) + full 10-point analysis; buffer / rest half-day',
+    '2026-09-14': 'Digital Logic - number systems, Boolean algebra, minimization (algebraic + K-map)',
+    '2026-09-15': 'Digital Logic - combinational circuits (adders, muxes, decoders) + PYQs',
+    '2026-09-16': 'Digital Logic - sequential circuits (flip-flops, counters, registers) + PYQs',
+    '2026-09-17': 'Digital Logic - tabular / Quine-McCluskey method + mixed PYQ set + subject test'
+  };
+
+  var FINAL7_OVERRIDES = {
+    '2027-01-30': 'Final full mock + complete 10-point analysis',
+    '2027-01-31': 'Fix the top 3 error patterns from that mock; full formula-sheet read-through',
+    '2027-02-01': 'Full mistake-notebook read-through; light revision only, no new PYQs',
+    '2027-02-02': 'Rest-heavy day (light revision, 2-3 hrs max); normalize sleep; confirm admit card, ID, stationery',
+    '2027-02-03': 'Formula sheet + light GA/Math practice only; mentally rehearse the exam-hall strategy',
+    '2027-02-04': 'Confirm exam-center logistics (route, timing, documents); very light touch-revision only; early to bed',
+    '2027-02-05': 'No new studying. Rest, meal timing, sleep, and laying out documents for the morning.'
+  };
+
+  var WEEK_RANGES = [
+    { start:'2026-09-18', end:'2026-09-24', label:'Digital Logic' },
+    { start:'2026-09-25', end:'2026-10-01', label:'Programming & Data Structures - Part 1' },
+    { start:'2026-10-02', end:'2026-10-08', label:'Programming & Data Structures - Part 2' },
+    { start:'2026-10-09', end:'2026-10-15', label:'Computer Organization & Architecture' },
+    { start:'2026-10-16', end:'2026-10-22', label:'Algorithms - Part 1' },
+    { start:'2026-10-23', end:'2026-10-29', label:'Algorithms - Part 2' },
+    { start:'2026-10-30', end:'2026-11-05', label:'Theory of Computation' },
+    { start:'2026-11-06', end:'2026-11-12', label:'Compiler Design' },
+    { start:'2026-11-13', end:'2026-11-19', label:'Operating Systems - Part 1' },
+    { start:'2026-11-20', end:'2026-11-26', label:'Operating Systems - Part 2 + Databases start' },
+    { start:'2026-11-27', end:'2026-12-03', label:'Databases (finish) + Computer Networks' },
+    { start:'2026-12-04', end:'2026-12-10', label:'Revision - Math, Digital Logic, COA, P&DS, Algorithms' },
+    { start:'2026-12-11', end:'2026-12-17', label:'Revision - TOC, Compiler, OS, DBMS, CN + formula sheet' },
+    { start:'2026-12-18', end:'2027-01-07', label:'Mixed PYQ practice (interleaved) + part-tests' },
+    { start:'2027-01-08', end:'2027-01-21', label:'Full-length mocks (aim 2/week) + analysis + targeted repair' },
+    { start:'2027-01-22', end:'2027-01-28', label:'Final revision - no new content' }
+  ];
+
+  var FIRST_PASS_WEEK_RANGES = WEEK_RANGES.filter(function(w){ return w.end <= '2026-12-03'; });
+
+  var PHASES = [
+    { num:0, name:'Diagnostic', start:'2026-09-04', end:'2026-09-10' },
+    { num:1, name:'Concept Reconstruction', start:'2026-09-11', end:'2026-10-15' },
+    { num:2, name:'Syllabus Completion', start:'2026-10-16', end:'2026-12-03' },
+    { num:3, name:'First Revision', start:'2026-12-04', end:'2026-12-17' },
+    { num:4, name:'Intensive PYQ / Problem Solving', start:'2026-12-18', end:'2027-01-07' },
+    { num:5, name:'Full Mock Phase', start:'2027-01-08', end:'2027-01-21' },
+    { num:6, name:'Final Revision', start:'2027-01-22', end:'2027-01-28' },
+    { num:7, name:'Final Days', start:'2027-01-29', end:'2027-02-05' }
+  ];
+
+  var TARGET_LADDER = {
+    0: '25-35 baseline forms once foundation begins',
+    1: '25-35 on a foundations-only partial test by phase end',
+    2: '35-55, rising from mid-phase to phase end',
+    3: '55-65 after the first revision pass',
+    4: '60-72 as the intensive PYQ phase opens up',
+    5: '72-85+, consistently, across full mocks',
+    6: '72-85+, consistently - consolidating, not chasing new highs',
+    7: '78-88, with fewer than 5 negative-marking losses'
+  };
+
+  var DAYSTATUS_KEY = 'gate2027-day-status-v1';
+  var MOCKLOG_KEY = 'gate2027-mock-log-v1';
+
+  var dayStatus = {};
+  var mockLog = [];
+  var expandedWeeks = {};
+  var CALENDAR_DAYS = null;
+  var CALENDAR_GROUPS = null;
+  var todayStr = '';
+  var saveStatusTimeout = null;
+  var dayResetArmed = false;
+
+  function pad2(n) { return (n<10?'0':'')+n; }
+  function formatDate(d) { return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function displayDate(dateStr) {
+    var d = new Date(dateStr+'T00:00:00');
+    return DOW_NAMES[d.getDay()]+', '+MONTH_NAMES[d.getMonth()]+' '+d.getDate();
+  }
+  function shortDate(dateStr) {
+    var d = new Date(dateStr+'T00:00:00');
+    return MONTH_NAMES[d.getMonth()]+' '+d.getDate();
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function getPhase(dateStr) {
+    for (var i=0;i<PHASES.length;i++) {
+      if (dateStr >= PHASES[i].start && dateStr <= PHASES[i].end) return PHASES[i];
+    }
+    return null;
+  }
+  function findWeekLabel(dateStr) {
+    for (var i=0;i<WEEK_RANGES.length;i++) {
+      if (dateStr >= WEEK_RANGES[i].start && dateStr <= WEEK_RANGES[i].end) return WEEK_RANGES[i].label;
+    }
+    return 'Study block';
+  }
+
+  function buildDayInfo(dateStr) {
+    var phase = getPhase(dateStr);
+    var task, isBuffer=false, isSpecial=false;
+    if (PHASE0_OVERRIDES[dateStr]) {
+      task = PHASE0_OVERRIDES[dateStr]; isSpecial=true;
+    } else if (dateStr === '2026-10-03') {
+      task = 'Programming & DS - Part 2 + Day-30 diagnostic (90-min timed test: Math, Digital Logic, basic P&DS)';
+      isSpecial = true;
+    } else if (FINAL7_OVERRIDES[dateStr]) {
+      task = FINAL7_OVERRIDES[dateStr]; isSpecial=true;
+    } else if (dateStr === '2027-01-29') {
+      task = 'Taper begins - light revision, confirm logistics';
+      isSpecial = true;
+    } else {
+      var dow = new Date(dateStr+'T00:00:00').getDay();
+      if (dow === 0) {
+        task = 'Buffer / lighter day - catch-up, light revision, weekly review';
+        isBuffer = true;
+      } else {
+        task = findWeekLabel(dateStr);
+      }
+    }
+    return {
+      date: dateStr,
+      phaseNum: phase ? phase.num : null,
+      task: task,
+      isBuffer: isBuffer,
+      isSpecial: isSpecial
+    };
+  }
+
+  function buildCalendar() {
+    var days = [];
+    var cur = new Date(2026, 8, 4);
+    var end = new Date(2027, 1, 5);
+    while (cur.getTime() <= end.getTime()) {
+      days.push(buildDayInfo(formatDate(cur)));
+      cur.setDate(cur.getDate()+1);
+    }
+    return days;
+  }
+
+  function groupIntoWeeks(days) {
+    var groups = [];
+    var i = 0;
+    var weekNum = 1;
+    while (i < days.length) {
+      if (days[i].phaseNum === 7) {
+        groups.push({ id:'final', title:'Final Days', dates: shortDate(days[i].date)+' - '+shortDate(days[days.length-1].date), days: days.slice(i) });
+        break;
+      }
+      var chunk = days.slice(i, Math.min(i+7, days.length));
+      groups.push({ id:'w'+weekNum, title:'Week '+weekNum, dates: shortDate(chunk[0].date)+' - '+shortDate(chunk[chunk.length-1].date), days: chunk });
+      i += 7;
+      weekNum++;
+    }
+    return groups;
+  }
+
+  function computePaceStats() {
+    var expected=0, actual=0;
+    for (var i=0;i<CALENDAR_DAYS.length;i++) {
+      if (CALENDAR_DAYS[i].date <= todayStr) {
+        expected++;
+        if (dayStatus[CALENDAR_DAYS[i].date]) actual++;
+      }
+    }
+    return { expected:expected, actual:actual, diff:actual-expected };
+  }
+
+  function getPaceStatus(pace) {
+    var diff = pace.diff;
+    if (diff >= 0) {
+      return { label: diff===0 ? 'On track' : ('Ahead by '+diff+' day'+(diff===1?'':'s')), tone:'green', advice:null };
+    }
+    var behind = -diff;
+    if (behind <= 1) return { label:'Lagging by 1 day', tone:'yellow', advice:'Absorb this using the buffer day already built into this week - no schedule change needed.' };
+    if (behind <= 3) return { label:'Lagging by '+behind+' days', tone:'yellow', advice:'Compress the lowest-weight sub-topics in the current subject; catch up this week using the buffer day plus a modest hours increase, staying under 10 hrs/day.' };
+    if (behind <= 7) return { label:'Lagging by '+behind+' days', tone:'red', advice:'Shift phase boundaries by up to a week, borrowing from Phase 6 or the Phase 4/5 buffer. Do not shorten Phase 1 or 2 - under-baked fundamentals compound.' };
+    if (behind <= 14) return { label:'Lagging by '+behind+' days', tone:'red', advice:'Time for a full re-plan: compress Tier C/D subjects to a PYQ-pattern-only pass to protect Tier A/B depth.' };
+    return { label:'Lagging by '+behind+' days', tone:'red', advice:'Past the 14-day threshold - a full re-plan is urgent. AIR under 100 gets harder from here, but a strong, competitive score is still very achievable.' };
+  }
+
+  function blockStats(label, daysArr) {
+    var t = daysArr.length;
+    var d = daysArr.filter(function(x){ return !!dayStatus[x.date]; }).length;
+    return { label:label, total:t, done:d, pct: t?Math.round(d/t*100):0 };
+  }
+
+  function computeSyllabusStats() {
+    var relevant = CALENDAR_DAYS.filter(function(d){ return d.phaseNum===1 || d.phaseNum===2; });
+    var total = relevant.length;
+    var done = relevant.filter(function(d){ return !!dayStatus[d.date]; }).length;
+
+    var perBlock = [];
+    var week2Days = CALENDAR_DAYS.filter(function(d){ return d.date>='2026-09-11' && d.date<='2026-09-17'; });
+    perBlock.push(blockStats('Discrete / Engineering Math', week2Days));
+    FIRST_PASS_WEEK_RANGES.forEach(function(w){
+      var wDays = CALENDAR_DAYS.filter(function(d){ return d.date>=w.start && d.date<=w.end; });
+      perBlock.push(blockStats(w.label, wDays));
+    });
+
+    return { total:total, done:done, pct: total?Math.round(done/total*100):0, perBlock:perBlock };
+  }
+
+  function getMockZone(score, accuracy) {
+    if (score < 55 || accuracy < 70) return { emoji:'\ud83d\udd34', tone:'red' };
+    if (score >= 72 && accuracy >= 85) return { emoji:'\ud83d\udfe2', tone:'green' };
+    return { emoji:'\ud83d\udfe1', tone:'yellow' };
+  }
+
+  function getTrajectory() {
+    var full = mockLog.filter(function(m){ return m.type==='full'; })
+                       .slice()
+                       .sort(function(a,b){ return a.date<b.date?-1:(a.date>b.date?1:0); });
+    var recent = full.slice(-3);
+    if (recent.length < 3) return { insufficient:true, count:recent.length };
+    var avgScore = recent.reduce(function(s,m){return s+Number(m.score);},0)/recent.length;
+    var avgAcc = recent.reduce(function(s,m){return s+Number(m.accuracy);},0)/recent.length;
+    var zone = getMockZone(avgScore, avgAcc);
+    return { insufficient:false, tone:zone.tone, emoji:zone.emoji, avgScore:avgScore, avgAcc:avgAcc };
+  }
+
+  function getSynthesis(pace, trajectory) {
+    var behind = pace.diff < 0;
+    var behindAmt = -pace.diff;
+    var behindTxt = behindAmt + ' day' + (behindAmt===1?'':'s');
+
+    if (trajectory.insufficient) {
+      if (!behind) return 'On pace. Mock trajectory is not readable yet - that needs 3 full mocks, and those do not start until Phase 4/5. For now, the calendar and syllabus numbers above are the honest signal.';
+      return 'Lagging by '+behindTxt+'. Close this gap before mocks even become the relevant signal - see the pace note above for the exact recovery step.';
+    }
+    if (trajectory.tone === 'green') {
+      if (!behind) return 'This is what a strong AIR under 100 trajectory looks like: pace on track, mocks consistently Green. Keep this exact rhythm - no need to add hours.';
+      return 'Mocks say Green, but pace is '+behindTxt+' behind. Close the calendar gap before it erodes the mock trend.';
+    }
+    if (trajectory.tone === 'yellow') {
+      if (!behind) return 'On pace, but mocks are Yellow. Diagnose which mistake category dominates your last mock (Part 2, Section 6) rather than adding hours.';
+      return 'Two signals both say fix now, not later: pace is '+behindTxt+' behind and mocks are Yellow. Close the gap, then run the Section 6 diagnosis on your last mock.';
+    }
+    var base = 'Mocks are in the Red zone - that calls for a changed input, not more hours. Re-read the decision rules in Part 2, Section 6 before your next mock.';
+    if (behind) base += ' Pace is also '+behindTxt+' behind.';
+    return base;
+  }
+
+  function withTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise(function(resolve, reject) {
+        setTimeout(function(){ reject(new Error('timeout')); }, ms);
+      })
+    ]);
+  }
+
+  async function loadAll() {
+    var results = await Promise.allSettled([
+      withTimeout(window.storage.get(DAYSTATUS_KEY, false), 5000),
+      withTimeout(window.storage.get(MOCKLOG_KEY, false), 5000)
+    ]);
+    if (results[0].status === 'fulfilled' && results[0].value && results[0].value.value) {
+      try { dayStatus = JSON.parse(results[0].value.value); } catch(e) { dayStatus = {}; }
+    } else { dayStatus = {}; }
+    if (results[1].status === 'fulfilled' && results[1].value && results[1].value.value) {
+      try { mockLog = JSON.parse(results[1].value.value); } catch(e) { mockLog = []; }
+    } else { mockLog = []; }
+  }
+
+  async function saveDayStatus() {
+    showSaveStatus('saving');
+    try {
+      var r = await window.storage.set(DAYSTATUS_KEY, JSON.stringify(dayStatus), false);
+      showSaveStatus(r ? 'ok' : 'err');
+    } catch(e) { showSaveStatus('err'); }
+  }
+
+  async function saveMockLog() {
+    showSaveStatus('saving');
+    try {
+      var r = await window.storage.set(MOCKLOG_KEY, JSON.stringify(mockLog), false);
+      showSaveStatus(r ? 'ok' : 'err');
+    } catch(e) { showSaveStatus('err'); }
+  }
+
+  function showSaveStatus(status) {
+    var el = document.getElementById('save-status');
+    if (status === 'saving') { el.textContent='Saving...'; el.className='save-status'; }
+    else if (status === 'ok') { el.textContent='Saved'; el.className='save-status ok'; }
+    else { el.textContent='Not saved'; el.className='save-status err'; }
+    clearTimeout(saveStatusTimeout);
+    if (status !== 'saving') saveStatusTimeout = setTimeout(function(){ el.textContent=''; }, 2500);
+  }
+
+  function renderOverview() {
+    var pace = computePaceStats();
+    var paceStatus = getPaceStatus(pace);
+    var syllabus = computeSyllabusStats();
+    var trajectory = getTrajectory();
+
+    var examDate = new Date(2027,1,6); examDate.setHours(0,0,0,0);
+    var todayD = new Date(); todayD.setHours(0,0,0,0);
+    var daysLeft = Math.round((examDate - todayD)/86400000);
+
+    document.getElementById('hero-days').textContent = daysLeft >= 0 ? daysLeft : 0;
+    document.getElementById('hero-label').textContent = daysLeft > 0 ? 'days until Feb 6, 2027' : (daysLeft===0 ? 'Exam day is today' : 'since your Feb 6, 2027 target');
+    document.getElementById('hero-progress').textContent = 'Day ' + Math.max(pace.expected,1) + ' of 155 in the plan';
+
+    var paceEl = document.getElementById('pace-value');
+    paceEl.textContent = paceStatus.label;
+    paceEl.className = 'stat-card-value ' + (paceStatus.tone==='green'?'c-green':(paceStatus.tone==='yellow'?'c-yellow':'c-red'));
+
+    document.getElementById('syllabus-value').textContent = syllabus.pct + '%';
+
+    var trajEl = document.getElementById('trajectory-value');
+    if (trajectory.insufficient) {
+      trajEl.textContent = trajectory.count + '/3 full mocks logged';
+      trajEl.className = 'stat-card-value';
+    } else {
+      trajEl.textContent = trajectory.emoji + ' ' + Math.round(trajectory.avgScore) + '/100 avg';
+      trajEl.className = 'stat-card-value ' + (trajectory.tone==='green'?'c-green':(trajectory.tone==='yellow'?'c-yellow':'c-red'));
+    }
+
+    var adviceBox = document.getElementById('pace-advice');
+    if (paceStatus.advice) {
+      adviceBox.style.display = 'block';
+      adviceBox.className = 'advice-box' + (paceStatus.tone==='red' ? ' red' : '');
+      adviceBox.textContent = paceStatus.label + ' - ' + paceStatus.advice;
+    } else {
+      adviceBox.style.display = 'none';
+    }
+
+    document.getElementById('synthesis-text').textContent = getSynthesis(pace, trajectory);
+
+    var phase = getPhase(todayStr);
+    document.getElementById('target-ladder-line').textContent = phase ? ('Current phase: '+phase.name+' - full-mock target '+TARGET_LADDER[phase.num]) : '';
+
+    var syDetail = document.getElementById('syllabus-detail');
+    syDetail.innerHTML = syllabus.perBlock.map(function(b){
+      var color = b.pct>=80?'c-green':(b.pct>=40?'c-yellow':'c-red');
+      return '<div class="block-row"><span class="block-label">'+escapeHtml(b.label)+'</span>'+
+        '<div class="block-bar-track"><div class="block-bar-fill '+color+'" style="width:'+b.pct+'%"></div></div>'+
+        '<span class="block-pct '+color+'">'+b.pct+'%</span></div>';
+    }).join('');
+  }
+
+  function renderCalendarPanel() {
+    var container = document.getElementById('calendar-groups');
+    container.innerHTML = CALENDAR_GROUPS.map(function(group){
+      var doneCount = group.days.filter(function(d){ return !!dayStatus[d.date]; }).length;
+      var isOpen = !!expandedWeeks[group.id];
+      var rows = group.days.map(function(day){
+        var isToday = day.date === todayStr;
+        var isDone = !!dayStatus[day.date];
+        var badge = '';
+        if (day.isSpecial) badge = '<span class="day-badge milestone">Milestone</span>';
+        else if (day.isBuffer) badge = '<span class="day-badge buffer">Buffer</span>';
+        return '<div class="day-row'+(isToday?' today':'')+(isDone?' done':'')+'">'+
+          '<label class="day-check"><input type="checkbox" data-date="'+day.date+'"'+(isDone?' checked':'')+'></label>'+
+          '<div class="day-info">'+
+            '<div class="day-date-line">'+displayDate(day.date)+badge+'</div>'+
+            '<div class="day-task">'+escapeHtml(day.task)+'</div>'+
+          '</div>'+
+        '</div>';
+      }).join('');
+
+      return '<div class="week-group">'+
+        '<div class="week-header" data-week-toggle="'+group.id+'">'+
+          '<span class="week-chevron'+(isOpen?' open':'')+'">\u203a</span>'+
+          '<span class="week-title-block"><span class="week-title">'+group.title+'</span><span class="week-dates">'+group.dates+'</span></span>'+
+          '<span class="week-count">'+doneCount+'/'+group.days.length+'</span>'+
+        '</div>'+
+        '<div class="week-days" style="display:'+(isOpen?'block':'none')+'">'+rows+'</div>'+
+      '</div>';
+    }).join('');
+
+    var examEl = document.getElementById('exam-day-marker');
+    var examDaysLeft = Math.round((new Date(2027,1,6) - new Date(todayStr+'T00:00:00'))/86400000);
+    examEl.textContent = 'Feb 6, 2027 - Exam Day' + (examDaysLeft>=0 ? ' (' + examDaysLeft + ' days from today)' : '');
+  }
+
+  function renderMockLogPanel() {
+    var container = document.getElementById('mock-list');
+    var sorted = mockLog.slice().sort(function(a,b){ return a.date<b.date?1:(a.date>b.date?-1:0); });
+    if (!sorted.length) {
+      container.innerHTML = '<div class="empty-state">No tests logged yet. Add your first subject test, part test, or full mock above.</div>';
+      return;
+    }
+    container.innerHTML = sorted.map(function(m){
+      var typeLabel = m.type==='full'?'Full mock':(m.type==='part'?'Part test':'Subject test');
+      var zoneHtml = '';
+      var barColor = 'c-yellow';
+      if (m.type === 'full') {
+        var z = getMockZone(Number(m.score), Number(m.accuracy));
+        zoneHtml = '<span class="mock-zone-emoji">'+z.emoji+'</span>';
+        barColor = z.tone==='green'?'c-green':(z.tone==='red'?'c-red':'c-yellow');
+      }
+      var attemptedTxt = m.attempted ? (' - Attempted '+m.attempted+'/65') : '';
+      var notesHtml = m.notes ? '<div class="mock-notes-line">'+escapeHtml(m.notes)+'</div>' : '';
+      return '<div class="mock-entry">'+
+        '<div class="mock-entry-top">'+
+          '<span class="mock-entry-date">'+shortDate(m.date)+', '+m.date.slice(0,4)+'</span>'+
+          '<span class="mock-type-tag">'+typeLabel+'</span>'+
+          zoneHtml+
+          '<button class="mock-delete-btn" data-mock-id="'+m.id+'">\u00d7</button>'+
+        '</div>'+
+        '<div class="mock-bar-track"><div class="mock-bar-fill '+barColor+'" style="width:'+m.score+'%"></div></div>'+
+        '<div class="mock-stats-line">Score '+m.score+'/100 - Accuracy '+m.accuracy+'%'+attemptedTxt+'</div>'+
+        notesHtml+
+      '</div>';
+    }).join('');
+  }
+
+  document.getElementById('tab-nav').addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    switchTab(btn.getAttribute('data-tab'));
+  });
+
+  function switchTab(tab) {
+    ['overview','calendar','mocklog'].forEach(function(t){
+      document.getElementById('tab-panel-'+t).style.display = (t===tab) ? 'block' : 'none';
+      document.getElementById('tab-btn-'+t).classList.toggle('active', t===tab);
+    });
+  }
+
+  document.getElementById('calendar-groups').addEventListener('change', function(e){
+    var cb = e.target.closest('input[type=checkbox]');
+    if (!cb) return;
+    var date = cb.getAttribute('data-date');
+    dayStatus[date] = cb.checked;
+    saveDayStatus();
+    renderCalendarPanel();
+    renderOverview();
+  });
+
+  document.getElementById('calendar-groups').addEventListener('click', function(e){
+    var header = e.target.closest('.week-header');
+    if (!header) return;
+    var id = header.getAttribute('data-week-toggle');
+    expandedWeeks[id] = !expandedWeeks[id];
+    renderCalendarPanel();
+  });
+
+  document.getElementById('jump-today-btn').addEventListener('click', function(){
+    var idx = -1;
+    for (var i=0;i<CALENDAR_GROUPS.length;i++) {
+      for (var j=0;j<CALENDAR_GROUPS[i].days.length;j++) {
+        if (CALENDAR_GROUPS[i].days[j].date === todayStr) { idx = i; break; }
+      }
+      if (idx !== -1) break;
+    }
+    if (idx === -1) return;
+    expandedWeeks[CALENDAR_GROUPS[idx].id] = true;
+    renderCalendarPanel();
+    setTimeout(function(){
+      var el = document.querySelector('.day-row.today');
+      if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 50);
+  });
+
+  document.getElementById('expand-all-weeks-btn').addEventListener('click', function(){
+    CALENDAR_GROUPS.forEach(function(g){ expandedWeeks[g.id] = true; });
+    renderCalendarPanel();
+  });
+  document.getElementById('collapse-all-weeks-btn').addEventListener('click', function(){
+    CALENDAR_GROUPS.forEach(function(g){ expandedWeeks[g.id] = false; });
+    renderCalendarPanel();
+  });
+
+  document.getElementById('reset-days-btn').addEventListener('click', function(){
+    var btn = this;
+    if (!dayResetArmed) {
+      dayResetArmed = true;
+      btn.textContent = 'Click again to confirm';
+      btn.classList.add('armed');
+      setTimeout(function(){ dayResetArmed=false; btn.textContent='Reset all day statuses'; btn.classList.remove('armed'); }, 3000);
+    } else {
+      dayStatus = {};
+      dayResetArmed = false;
+      btn.textContent = 'Reset all day statuses';
+      btn.classList.remove('armed');
+      saveDayStatus();
+      renderCalendarPanel();
+      renderOverview();
+    }
+  });
+
+  document.getElementById('syllabus-toggle').addEventListener('click', function(){
+    var el = document.getElementById('syllabus-detail');
+    var visible = el.style.display !== 'none';
+    el.style.display = visible ? 'none' : 'block';
+    this.textContent = visible ? 'Syllabus by block \u25be' : 'Syllabus by block \u25b4';
+  });
+
+  document.getElementById('mock-add-btn').addEventListener('click', function(){
+    var dateVal = document.getElementById('mock-date').value;
+    var typeVal = document.getElementById('mock-type').value;
+    var scoreVal = document.getElementById('mock-score').value;
+    var accVal = document.getElementById('mock-accuracy').value;
+    var attVal = document.getElementById('mock-attempted').value;
+    var notesVal = document.getElementById('mock-notes').value.trim();
+    var errEl = document.getElementById('mock-form-error');
+
+    if (!dateVal) { errEl.textContent = 'Pick a date.'; errEl.style.display='block'; return; }
+    if (scoreVal === '' || isNaN(scoreVal) || Number(scoreVal) < 0 || Number(scoreVal) > 100) {
+      errEl.textContent = 'Score must be a number from 0 to 100.'; errEl.style.display='block'; return;
+    }
+    if (accVal === '' || isNaN(accVal) || Number(accVal) < 0 || Number(accVal) > 100) {
+      errEl.textContent = 'Accuracy must be a number from 0 to 100.'; errEl.style.display='block'; return;
+    }
+    errEl.style.display = 'none';
+
+    var entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      date: dateVal,
+      type: typeVal,
+      score: Number(scoreVal),
+      accuracy: Number(accVal),
+      attempted: attVal !== '' ? Number(attVal) : null,
+      notes: notesVal
+    };
+    mockLog.push(entry);
+    saveMockLog();
+    renderMockLogPanel();
+    renderOverview();
+
+    document.getElementById('mock-score').value = '';
+    document.getElementById('mock-accuracy').value = '';
+    document.getElementById('mock-attempted').value = '';
+    document.getElementById('mock-notes').value = '';
+  });
+
+  document.getElementById('mock-list').addEventListener('click', function(e){
+    var btn = e.target.closest('.mock-delete-btn');
+    if (!btn) return;
+    var id = btn.getAttribute('data-mock-id');
+    mockLog = mockLog.filter(function(m){ return m.id !== id; });
+    saveMockLog();
+    renderMockLogPanel();
+    renderOverview();
+  });
+
+  async function init() {
+    var now = new Date();
+    todayStr = formatDate(now);
+    document.getElementById('mock-date').value = todayStr;
+
+    CALENDAR_DAYS = buildCalendar();
+    CALENDAR_GROUPS = groupIntoWeeks(CALENDAR_DAYS);
+
+    for (var i=0;i<CALENDAR_GROUPS.length;i++) {
+      var found = false;
+      for (var j=0;j<CALENDAR_GROUPS[i].days.length;j++) {
+        if (CALENDAR_GROUPS[i].days[j].date === todayStr) { found = true; break; }
+      }
+      if (found) { expandedWeeks[CALENDAR_GROUPS[i].id] = true; break; }
+    }
+
+    await loadAll();
+
+    renderOverview();
+    renderCalendarPanel();
+    renderMockLogPanel();
+
+    document.getElementById('loading-msg').style.display = 'none';
+    document.getElementById('main-content').classList.remove('hidden');
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
