@@ -499,42 +499,39 @@
     return base;
   }
 
-  function withTimeout(promise, ms) {
-    return Promise.race([
-      promise,
-      new Promise(function(resolve, reject) {
-        setTimeout(function(){ reject(new Error('timeout')); }, ms);
-      })
-    ]);
+  function loadAll() {
+    try {
+      var rawDays = localStorage.getItem(DAYSTATUS_KEY);
+      dayStatus = rawDays ? JSON.parse(rawDays) : {};
+    } catch (e) {
+      dayStatus = {};
+    }
+    try {
+      var rawMocks = localStorage.getItem(MOCKLOG_KEY);
+      mockLog = rawMocks ? JSON.parse(rawMocks) : [];
+    } catch (e) {
+      mockLog = [];
+    }
   }
 
-  async function loadAll() {
-    var results = await Promise.allSettled([
-      withTimeout(window.storage.get(DAYSTATUS_KEY, false), 5000),
-      withTimeout(window.storage.get(MOCKLOG_KEY, false), 5000)
-    ]);
-    if (results[0].status === 'fulfilled' && results[0].value && results[0].value.value) {
-      try { dayStatus = JSON.parse(results[0].value.value); } catch(e) { dayStatus = {}; }
-    } else { dayStatus = {}; }
-    if (results[1].status === 'fulfilled' && results[1].value && results[1].value.value) {
-      try { mockLog = JSON.parse(results[1].value.value); } catch(e) { mockLog = []; }
-    } else { mockLog = []; }
-  }
-
-  async function saveDayStatus() {
+  function saveDayStatus() {
     showSaveStatus('saving');
     try {
-      var r = await window.storage.set(DAYSTATUS_KEY, JSON.stringify(dayStatus), false);
-      showSaveStatus(r ? 'ok' : 'err');
-    } catch(e) { showSaveStatus('err'); }
+      localStorage.setItem(DAYSTATUS_KEY, JSON.stringify(dayStatus));
+      showSaveStatus('ok');
+    } catch (e) {
+      showSaveStatus('err');
+    }
   }
 
-  async function saveMockLog() {
+  function saveMockLog() {
     showSaveStatus('saving');
     try {
-      var r = await window.storage.set(MOCKLOG_KEY, JSON.stringify(mockLog), false);
-      showSaveStatus(r ? 'ok' : 'err');
-    } catch(e) { showSaveStatus('err'); }
+      localStorage.setItem(MOCKLOG_KEY, JSON.stringify(mockLog));
+      showSaveStatus('ok');
+    } catch (e) {
+      showSaveStatus('err');
+    }
   }
 
   function showSaveStatus(status) {
@@ -795,7 +792,7 @@
     renderOverview();
   });
 
-  async function init() {
+  function init() {
     var now = new Date();
     todayStr = formatDate(now);
     document.getElementById('mock-date').value = todayStr;
@@ -811,7 +808,7 @@
       if (found) { expandedWeeks[CALENDAR_GROUPS[i].id] = true; break; }
     }
 
-    await loadAll();
+    loadAll();
 
     renderOverview();
     renderCalendarPanel();
